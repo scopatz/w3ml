@@ -13,7 +13,7 @@ from prettytable import PrettyTable
 
 import w3g
 
-from w3ml.tools import ensure_slice, isnumeric
+from w3ml.tools import ensure_slice, isnumeric, noop, shortsha1, ms_to_time
 
 if sys.version_info[0] < 3:
     # to print unicode
@@ -142,12 +142,13 @@ class Database(object):
 
     def pprint(self, s=None):
         s = ensure_slice(s)
+        transformers = [shortsha1, noop, ms_to_time]
         cols = ['idx'] + list(map(lambda x: x.replace('_', ' '), METADATA_DESC.names))
         pt = PrettyTable(cols)
         data = self.metadata[s]
         for i, row in enumerate(data):
-            row = list(row)
-            pt.add_row([i, hexlify(row[0][:4])] + list(row[1:]))
+            r = [i] + [f(x) for f, x in zip(transformers, row)]
+            pt.add_row(r)
         ptstr = pt.get_string()
         print(ptstr)
 
