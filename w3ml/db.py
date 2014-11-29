@@ -9,8 +9,11 @@ from binascii import hexlify, unhexlify
 
 import numpy as np
 import tables as tb
+from prettytable import PrettyTable
 
 import w3g
+
+from w3ml.tools import ensure_slice
 
 if sys.version_info[0] < 3:
     # to print unicode
@@ -101,6 +104,17 @@ class Database(object):
         b = bytes(self.replays[i])
         sys.stdout.write(b)
 
+    def pprint(self, s=None):
+        s = ensure_slice(s)
+        cols = ['idx'] + list(map(lambda x: x.replace('_', ' '), METADATA_DESC.names))
+        pt = PrettyTable(cols)
+        data = self.metadata[s]
+        for i, row in enumerate(data):
+            row = list(row)
+            pt.add_row([i, hexlify(row[0][:4])] + list(row[1:]))
+        ptstr = pt.get_string()
+        print(ptstr)
+
 def act(db, ns):
     """Performs command line actions."""
     if ns.add is not None:
@@ -108,6 +122,8 @@ def act(db, ns):
     if ns.dump is not None:
         i = unhexlify(ns.dump) if len(ns.dump) == 40 else int(ns.dump)
         db.dump(i)
+    if ns.list != '<not-given>':
+        db.pprint(ns.list)
 
 def main():
     import argparse
@@ -115,6 +131,9 @@ def main():
     parser.add_argument('file', help='Path to the database')
     parser.add_argument('-a', '--add', dest='add', default=None, 
                         help='adds a replay to the database from a file or url')
+    parser.add_argument('-l', '--list', dest='list', nargs='?', const=None,
+                        default='<not-given>', 
+                        help='lists metadata in the database')
     parser.add_argument('--dump', dest='dump', default=None, 
                         help='dumps a replay to the screen')
     ns = parser.parse_args()
