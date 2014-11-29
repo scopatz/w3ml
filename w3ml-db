@@ -1,0 +1,3 @@
+#! /usr/bin/env python
+import w3ml.db
+w3ml.db.main()
