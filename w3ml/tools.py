@@ -18,3 +18,10 @@ def ensure_slice(s=None):
     else:
         assert isinstance(s, slice)
     return s
+
+isdigit = lambda x: x.isdigit()
+
+def isnumeric(x):
+    if hasattr(x, 'isnumeric'):
+        return x.isnumeric()
+    return all(map(isdigit, x))

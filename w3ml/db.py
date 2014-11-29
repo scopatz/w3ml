@@ -13,7 +13,7 @@ from prettytable import PrettyTable
 
 import w3g
 
-from w3ml.tools import ensure_slice
+from w3ml.tools import ensure_slice, isnumeric
 
 if sys.version_info[0] < 3:
     # to print unicode
@@ -83,6 +83,43 @@ class Database(object):
         m = self.metadata[:]
         self.replay_idx = dict(zip(m['sha1'], range(len(m))))
 
+    def sha1(self, x):
+        """Get the SHA1 hash from part or all of a hash."""
+        ris = self.replay_idx
+        if x in ris:
+            return ris[x]
+        if isinstance(x, str):
+            x = unhexlify(x)
+        hashes = sorted(ris.keys())
+        n = len(hashes)
+        i = n // 2
+        h = hashes[i]
+        while i != -1 and i != n and not h.startswith(x):
+            if i == 0:
+                i = -1
+                continue
+            elif i+1 == n:
+                i = n
+                continue
+            i = (i + n)//2 if x > h else i//2
+            h = hashes[i]
+        if i == -1 or i == n:
+            raise ValueError('SHA1 could not be found that matches {0}'.format(x))
+        return h
+
+    def idx(self, x):
+        """Get the index for a sha1 hash, the first part of a sha1 hash, or a number.
+        """
+        ris = self.replay_idx
+        if isinstance(x, int):
+            return x
+        elif x in ris:
+            return ris[x]
+        elif isnumeric(x):
+            return int(x)
+        else:
+            return ris[self.sha1(x)] 
+
     def add_replay(self, path):
         """Adds a replay from path to the database."""
         with open(path, 'rb') as f:
@@ -99,8 +136,7 @@ class Database(object):
 
     def dump(self, i):
         """Dumps a replay to the screen."""
-        if isinstance(i, bytes) and len(i) == 20:
-            i = self.replay_idx[i]
+        i = self.idx(i)
         b = bytes(self.replays[i])
         sys.stdout.write(b)
 
@@ -120,8 +156,7 @@ def act(db, ns):
     if ns.add is not None:
         db.add_replay(ns.add)
     if ns.dump is not None:
-        i = unhexlify(ns.dump) if len(ns.dump) == 40 else int(ns.dump)
-        db.dump(i)
+        db.dump(ns.dump)
     if ns.list != '<not-given>':
         db.pprint(ns.list)
 
