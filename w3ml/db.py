@@ -31,9 +31,10 @@ if sys.version_info[0] < 3:
     print = umake(print)
 
 METADATA_DESC = np.dtype([(b'sha1', b'S20'), (b'speed', b'S6'), (b'map', b'S100'),
-    (b'winner', np.uint8), (b'player1', np.uint8, 50), (b'race1', b'S16'), 
-    (b'player2', np.uint8, 50), (b'race2', b'S16'), (b'build_num', b'i2'), 
-    (b'duration', b'i4')])
+    (b'winner', np.uint8), 
+    (b'player1', np.uint8, 50), (b'race1', b'S16'), (b'color1', b'S10'), 
+    (b'player2', np.uint8, 50), (b'race2', b'S16'), (b'color2', b'S10'), 
+    (b'build', b'i2'), (b'duration', b'i4')])
 
 class Database(object):
     """Represents a database of Warcraft 3 replay files."""
@@ -135,8 +136,8 @@ class Database(object):
         w3f = w3g.File(BytesIO(b))
         self.replays.append(b)
         self.metadata.append([(h, w3f.game_speed, w3f.map_name, w3f.winner(),
-            u2i(w3f.player_name(1), 50), w3f.player_race(1),
-            u2i(w3f.player_name(2), 50), w3f.player_race(2),
+            u2i(w3f.player_name(1), 50), w3f.player_race(1), w3f.slot_record(1).color,
+            u2i(w3f.player_name(2), 50), w3f.player_race(2), w3f.slot_record(2).color,
             w3f.build_num, w3f.replay_length)])
         self.replay_idx[h] = len(self)
 
@@ -148,7 +149,10 @@ class Database(object):
 
     def pprint(self, s=None):
         s = ensure_slice(s)
-        transformers = [shortsha1, noop, noop, noop, i2u, noop, i2u, noop, noop, ms_to_time]
+        transformers = [shortsha1, noop, noop, noop, 
+                        i2u, noop, noop, 
+                        i2u, noop, noop, 
+                        noop, ms_to_time]
         cols = ['idx'] + list(map(lambda x: x.replace('_', ' '), METADATA_DESC.names))
         pt = PrettyTable(cols)
         data = self.metadata[s]
