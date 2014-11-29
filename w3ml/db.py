@@ -27,7 +27,7 @@ if sys.version_info[0] < 3:
     print = umake(print)
 
 METADATA_DESC = np.dtype([(b'sha1', u'S20'), (b'build_num', b'i2'), 
-                          (b'durration', b'i4')])
+                          (b'duration', b'i4')])
 
 class Database(object):
     """Represents a database of Warcraft 3 replay files."""
@@ -92,6 +92,7 @@ class Database(object):
         w3f = w3g.File(BytesIO(b))
         self.replays.append(b)
         self.metadata.append([(h, w3f.build_num, w3f.replay_length)])
+        self.replay_idx[h] = len(self)
 
     def dump(self, i):
         """Dumps a replay to the screen."""
