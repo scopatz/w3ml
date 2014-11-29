@@ -1,6 +1,29 @@
 """Some generic helper tools for warcraft 3 machine learning.
 """
+from __future__ import unicode_literals, print_function
 from binascii import hexlify, unhexlify
+
+import numpy as np
+
+def u2i(x, size=None):
+    """Converts a unicode string to an array of integers. If size is 
+    not None, then the result will have a null-padded size.
+    """
+    v = np.array(bytearray(x, 'utf8'), np.uint8)
+    if size is not None:
+        lenv = len(v)
+        if lenv > size:
+            v = v[:size]
+        elif lenv < size:
+            vv = np.empty(size, np.uint8)
+            vv[:lenv] = v
+            vv[lenv:] = 0
+            v = vv
+    return v
+
+def i2u(x):
+    """Converts an integer array to a unicode string."""
+    return bytearray(x).decode('utf-8')
 
 def ensure_slice(s=None):
     """Ensures a valide slice is returned."""

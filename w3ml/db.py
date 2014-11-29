@@ -13,7 +13,8 @@ from prettytable import PrettyTable
 
 import w3g
 
-from w3ml.tools import ensure_slice, isnumeric, noop, shortsha1, ms_to_time
+from w3ml.tools import ensure_slice, isnumeric, noop, shortsha1, ms_to_time, \
+    u2i, i2u
 
 if sys.version_info[0] < 3:
     # to print unicode
@@ -30,7 +31,7 @@ if sys.version_info[0] < 3:
     print = umake(print)
 
 METADATA_DESC = np.dtype([(b'sha1', b'S20'), (b'speed', b'S6'), (b'map', b'S100'),
-    (b'build_num', b'i2'), (b'duration', b'i4')])
+    (b'winner', np.uint8), (b'player1_name', np.uint8, 50), (b'player2_name', np.uint8, 50), (b'build_num', b'i2'), (b'duration', b'i4')])
 
 class Database(object):
     """Represents a database of Warcraft 3 replay files."""
@@ -131,8 +132,9 @@ class Database(object):
             return
         w3f = w3g.File(BytesIO(b))
         self.replays.append(b)
-        self.metadata.append([(h, w3f.game_speed, w3f.map_name, w3f.build_num, 
-            w3f.replay_length)])
+        self.metadata.append([(h, w3f.game_speed, w3f.map_name, w3f.winner(),
+            u2i(w3f.player_name(1), 50), u2i(w3f.player_name(2), 50), 
+            w3f.build_num, w3f.replay_length)])
         self.replay_idx[h] = len(self)
 
     def dump(self, i):
@@ -143,7 +145,7 @@ class Database(object):
 
     def pprint(self, s=None):
         s = ensure_slice(s)
-        transformers = [shortsha1, noop, noop, noop, ms_to_time]
+        transformers = [shortsha1, noop, noop, noop, i2u, i2u, noop, ms_to_time]
         cols = ['idx'] + list(map(lambda x: x.replace('_', ' '), METADATA_DESC.names))
         pt = PrettyTable(cols)
         data = self.metadata[s]
