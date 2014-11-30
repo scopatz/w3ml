@@ -68,3 +68,7 @@ def ms_to_time(x):
         rtn.append("{0:02}".format(m))
     rtn.append("{0:06.3f}".format(s))
     return ":".join(rtn)
+
+def stramp(x):
+    """String formats actions per minute"""
+    return '{0:.5}'.format(x)

@@ -14,7 +14,7 @@ from prettytable import PrettyTable
 import w3g
 
 from w3ml.tools import ensure_slice, isnumeric, noop, shortsha1, ms_to_time, \
-    u2i, i2u
+    u2i, i2u, stramp
 
 if sys.version_info[0] < 3:
     # to print unicode
@@ -30,11 +30,16 @@ if sys.version_info[0] < 3:
         return uprint
     print = umake(print)
 
-METADATA_DESC = np.dtype([(b'sha1', b'S20'), (b'speed', b'S6'), (b'map', b'S100'),
-    (b'winner', np.uint8), 
+METADATA_DESC = np.dtype([(b'sha1', b'S20'), (b'map', b'S100'),
+    (b'src', b'S250'), (b'winner', np.uint8), 
     (b'player1', np.uint8, 50), (b'race1', b'S16'), (b'color1', b'S10'), 
+    (b'actions1', np.int64), (b'apm1', np.float64), 
     (b'player2', np.uint8, 50), (b'race2', b'S16'), (b'color2', b'S10'), 
-    (b'build', b'i2'), (b'duration', b'i4')])
+    (b'actions2', np.int64), (b'apm2', np.float64),
+    (b'build', b'i2'), (b'speed', b'S6'), (b'duration', b'i4')])
+
+DEFAULT_COLS = ('idx', 'sha1', 'map', 'winner', 'player1', 'race1', 'apm1', 
+                'player2', 'race2', 'apm2', 'duration')
 
 class Database(object):
     """Represents a database of Warcraft 3 replay files."""
@@ -134,11 +139,15 @@ class Database(object):
             print(msg.format(path, hexlify(h), self.replay_idx[h]))
             return
         w3f = w3g.File(BytesIO(b))
+        actions = w3f.timegrid_actions()
+        mins = w3f.replay_length / (1000.0 * 60)
         self.replays.append(b)
-        self.metadata.append([(h, w3f.game_speed, w3f.map_name, w3f.winner(),
+        self.metadata.append([(h, w3f.map_name, path, w3f.winner(),
             u2i(w3f.player_name(1), 50), w3f.player_race(1), w3f.slot_record(1).color,
+            actions[1][-1], actions[1][-1] / mins, 
             u2i(w3f.player_name(2), 50), w3f.player_race(2), w3f.slot_record(2).color,
-            w3f.build_num, w3f.replay_length)])
+            actions[2][-1], actions[2][-1] / mins,
+            w3f.build_num, w3f.game_speed, w3f.replay_length)])
         self.replay_idx[h] = len(self)
 
     def dump(self, i):
@@ -147,19 +156,19 @@ class Database(object):
         b = bytes(self.replays[i])
         sys.stdout.write(b)
 
-    def pprint(self, s=None):
+    def pprint(self, s=None, cols=DEFAULT_COLS):
         s = ensure_slice(s)
         transformers = [shortsha1, noop, noop, noop, 
-                        i2u, noop, noop, 
-                        i2u, noop, noop, 
-                        noop, ms_to_time]
-        cols = ['idx'] + list(map(lambda x: x.replace('_', ' '), METADATA_DESC.names))
-        pt = PrettyTable(cols)
+                        i2u, noop, noop, noop, stramp,
+                        i2u, noop, noop, noop, stramp,
+                        noop, noop, ms_to_time]
+        colnames = ['idx'] + list(map(lambda x: x.replace('_', ' '), METADATA_DESC.names))
+        pt = PrettyTable(colnames)
         data = self.metadata[s]
         for i, row in enumerate(data):
             r = [i] + [f(x) for f, x in zip(transformers, row)]
             pt.add_row(r)
-        ptstr = pt.get_string()
+        ptstr = pt.get_string(fields=cols)
         print(ptstr)
 
 def act(db, ns):
@@ -169,7 +178,7 @@ def act(db, ns):
     if ns.dump is not None:
         db.dump(ns.dump)
     if ns.list != '<not-given>':
-        db.pprint(ns.list)
+        db.pprint(ns.list, cols=ns.cols)
 
 def main():
     import argparse
@@ -180,6 +189,10 @@ def main():
     parser.add_argument('-l', '--list', dest='list', nargs='?', const=None,
                         default='<not-given>', 
                         help='lists metadata in the database')
+    parser.add_argument('--cols', dest='cols', nargs='+', 
+                        default=DEFAULT_COLS, 
+                        help='lists only the given columns. available columns are: '
+                             'idx, ' + ', '.join(METADATA_DESC.names))
     parser.add_argument('--dump', dest='dump', default=None, 
                         help='dumps a replay to the screen')
     ns = parser.parse_args()
