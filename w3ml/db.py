@@ -187,9 +187,12 @@ class Database(object):
             print(msg.format(src, hexlify(h), self.replay_idx[h]))
             return
         actions = w3f.timegrid_actions()
-        mins = w3f.clock / (1000.0 * 60)
         if len(actions) != 2:
             warn('Replay does not appear to be 1v1 game...skipping', RuntimeWarning)
+            return 
+        mins = w3f.clock / (1000.0 * 60)
+        if mins > 120.0:
+            print('Game longer than 2 hrs...skipping')
             return 
         pid1, pid2 = sorted(actions.keys())
         self.replays.append(b)
