@@ -3,6 +3,7 @@
 from __future__ import print_function, unicode_literals
 import os
 import sys
+import traceback
 from io import BytesIO
 from hashlib import sha1
 from warnings import warn
@@ -176,7 +177,15 @@ class Database(object):
             msg = '{0} (SHA1 {1}) already in database at index {2}, skipping.'
             print(msg.format(src, hexlify(h), self.replay_idx[h]))
             return
-        w3f = w3g.File(BytesIO(b))
+        try:
+            w3f = w3g.File(BytesIO(b))
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                      file=sys.stdout)
+            msg = 'Error parsing {0} (SHA1 {1})...skipping.'
+            print(msg.format(src, hexlify(h), self.replay_idx[h]))
+            return
         actions = w3f.timegrid_actions()
         mins = w3f.clock / (1000.0 * 60)
         if len(actions) != 2:
