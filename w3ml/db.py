@@ -184,7 +184,7 @@ class Database(object):
             traceback.print_exception(exc_type, exc_value, exc_traceback,
                                       file=sys.stdout)
             msg = 'Error parsing {0} (SHA1 {1})...skipping.'
-            print(msg.format(src, hexlify(h), self.replay_idx[h]))
+            print(msg.format(src, hexlify(h)))
             return
         actions = w3f.timegrid_actions()
         if len(actions) != 2:
