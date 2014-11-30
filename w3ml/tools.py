@@ -1,6 +1,7 @@
 """Some generic helper tools for warcraft 3 machine learning.
 """
 from __future__ import unicode_literals, print_function
+import re
 from binascii import hexlify, unhexlify
 
 import numpy as np
@@ -72,3 +73,10 @@ def ms_to_time(x):
 def stramp(x):
     """String formats actions per minute"""
     return '{0:.5}'.format(x)
+
+HEX_RE = re.compile('[0-9A-Fa-f]*')
+
+def ishex(s):
+    """Checks if a string is in hexdecimal form."""
+    return HEX_RE.match(s) is not None
+

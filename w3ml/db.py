@@ -15,7 +15,7 @@ from prettytable import PrettyTable
 import w3g
 
 from w3ml.tools import ensure_slice, isnumeric, noop, shortsha1, ms_to_time, \
-    u2i, i2u, stramp
+    u2i, i2u, stramp, ishex
 
 if sys.version_info[0] < 3:
     # to print unicode
@@ -89,6 +89,17 @@ class Database(object):
     def __len__(self):
         return len(self.replay_idx)
 
+    def __iter__(self):
+        for h in self.replay_idx:
+            yield h
+
+    def __contains__(self, x):
+        try:
+            h = self.sha1(x)
+        except ValueError:
+            return False
+        return h in self.replay_idx
+
     def _ensure_heirarchy(self):
         r = self.root
         db = self.db
@@ -109,8 +120,8 @@ class Database(object):
         """Get the SHA1 hash from part or all of a hash."""
         ris = self.replay_idx
         if x in ris:
-            return ris[x]
-        if isinstance(x, str):
+            return x
+        if isinstance(x, str) and ishex(x):
             x = unhexlify(x)
         hashes = sorted(ris.keys())
         n = len(hashes)
@@ -188,6 +199,17 @@ class Database(object):
         b = bytes(self.replays[i])
         sys.stdout.write(b)
 
+    def merge(self, other):
+        """Merges another database into this one."""
+        for ohash in other:
+            if ohash in self.replay_idx:
+                continue
+            oidx = other.idx(ohash)
+            self.replays.append(other.replays[oidx])
+            self.metadata.append(other.metadata[oidx:oidx+1])
+            self.actions.append(other.actions[oidx:oidx+1])
+            self.replay_idx[ohash] = len(self)
+
     def pprint(self, s=None, cols=DEFAULT_COLS):
         """Pretty printer for metadata table."""
         s = ensure_slice(s)
@@ -227,6 +249,9 @@ def act(db, ns):
         db.print_events(ns.events)
     if ns.list != '<not-given>':
         db.pprint(ns.list, cols=ns.cols)
+    if ns.merge is not None:
+        with Database(ns.merge) as other:
+            db.merge(other)
 
 def main():
     import argparse
@@ -248,6 +273,8 @@ def main():
                         help='prints the events in a replay to the screen')
     parser.add_argument('--dump', dest='dump', default=None, 
                         help='dumps a replay to the screen')
+    parser.add_argument('-m', '--merge', dest='merge', default=None, 
+                        help='Merges another database into this one.')
     ns = parser.parse_args()
 
     with Database(ns.file) as db:
