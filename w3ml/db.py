@@ -30,16 +30,22 @@ if sys.version_info[0] < 3:
         return uprint
     print = umake(print)
 
+    from urllib import urlopen
+else:
+    from urllib.request import urlopen
+
 METADATA_DESC = np.dtype([(b'sha1', b'S20'), (b'map', b'S100'),
     (b'src', b'S250'), (b'winner', np.uint8), 
-    (b'player1', np.uint8, 50), (b'race1', b'S16'), (b'color1', b'S10'), 
-    (b'actions1', np.int64), (b'apm1', np.float64), 
-    (b'player2', np.uint8, 50), (b'race2', b'S16'), (b'color2', b'S10'), 
-    (b'actions2', np.int64), (b'apm2', np.float64),
+    (b'player1', np.uint8, 50), (b'race1', b'S16'), (b'pid1', np.int8), 
+    (b'color1', b'S10'), (b'actions1', np.int64), (b'apm1', np.float64), 
+    (b'player2', np.uint8, 50), (b'race2', b'S16'), (b'pid2', np.int8),
+    (b'color2', b'S10'), (b'actions2', np.int64), (b'apm2', np.float64),
     (b'build', b'i2'), (b'speed', b'S6'), (b'duration', b'i4')])
 
-DEFAULT_COLS = ('idx', 'sha1', 'map', 'winner', 'player1', 'race1', 'apm1', 
-                'player2', 'race2', 'apm2', 'duration')
+DEFAULT_COLS = ('idx', 'sha1', 'map', 'winner', 'player1', 'race1', 'pid1', 'apm1', 
+                'player2', 'race2', 'pid2', 'apm2', 'duration')
+
+NSTEPS = (120*60) + 1
 
 class Database(object):
     """Represents a database of Warcraft 3 replay files."""
@@ -59,6 +65,7 @@ class Database(object):
         self._ensure_heirarchy()
         self.replays = db.root.replays
         self.metadata = db.root.metadata
+        self.actions = db.root.actions
         self._load_metadata()
 
     def __del__(self):
@@ -87,6 +94,9 @@ class Database(object):
             db.create_vlarray(r, 'replays', atom=tb.VLStringAtom())
         if 'metadata' not in r:
             db.create_table(r, 'metadata', filters=filters, description=METADATA_DESC)
+        if 'actions' not in r:
+            db.create_earray(r, 'actions', atom=tb.Int64Atom(), shape=(0, 2, NSTEPS), 
+                             filters=filters)
 
     def _load_metadata(self):
         m = self.metadata[:]
@@ -130,24 +140,38 @@ class Database(object):
             return ris[self.sha1(x)] 
 
     def add_replay(self, path):
+        """Adds a replay to the database, path may be a file or url."""
+        if path.startswith('http://'):
+            # must be a url
+            response = urlopen(path)
+            b = response.read()
+        else:
+            # must be a normal file
+            with open(path, 'rb') as f:
+                b = f.read()
+        self.add_raw_replay(b, path)
+
+    def add_raw_replay(self, b, src='<unknown>'):
         """Adds a replay from path to the database."""
-        with open(path, 'rb') as f:
-            b = f.read()
         h = sha1(b).digest()
         if h in self.replay_idx:
             msg = '{0} (SHA1 {1}) already in database at index {2}, skipping.'
-            print(msg.format(path, hexlify(h), self.replay_idx[h]))
+            print(msg.format(src, hexlify(h), self.replay_idx[h]))
             return
         w3f = w3g.File(BytesIO(b))
         actions = w3f.timegrid_actions()
         mins = w3f.replay_length / (1000.0 * 60)
+        if len(actions) != 2:
+            raise RuntimeError('Replay does not appear to be 1v1 game.')
+        pid1, pid2 = sorted(actions.keys())
         self.replays.append(b)
-        self.metadata.append([(h, w3f.map_name, path, w3f.winner(),
-            u2i(w3f.player_name(1), 50), w3f.player_race(1), w3f.slot_record(1).color,
-            actions[1][-1], actions[1][-1] / mins, 
-            u2i(w3f.player_name(2), 50), w3f.player_race(2), w3f.slot_record(2).color,
-            actions[2][-1], actions[2][-1] / mins,
+        self.metadata.append([(h, w3f.map_name, src, w3f.winner(),
+            u2i(w3f.player_name(pid1), 50), w3f.player_race(pid1), pid1, 
+            w3f.slot_record(pid1).color, actions[pid1][-1], actions[pid1][-1] / mins, 
+            u2i(w3f.player_name(pid2), 50), w3f.player_race(pid2), pid2,
+            w3f.slot_record(pid2).color, actions[pid2][-1], actions[pid2][-1] / mins,
             w3f.build_num, w3f.game_speed, w3f.replay_length)])
+        self.actions.append([[actions[pid1], actions[pid2]]])
         self.replay_idx[h] = len(self)
 
     def dump(self, i):
@@ -159,8 +183,8 @@ class Database(object):
     def pprint(self, s=None, cols=DEFAULT_COLS):
         s = ensure_slice(s)
         transformers = [shortsha1, noop, noop, noop, 
-                        i2u, noop, noop, noop, stramp,
-                        i2u, noop, noop, noop, stramp,
+                        i2u, noop, noop, noop, noop, stramp,
+                        i2u, noop, noop, noop, noop, stramp,
                         noop, noop, ms_to_time]
         colnames = ['idx'] + list(map(lambda x: x.replace('_', ' '), METADATA_DESC.names))
         pt = PrettyTable(colnames)
