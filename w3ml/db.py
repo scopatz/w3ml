@@ -242,7 +242,9 @@ class Database(object):
 def act(db, ns):
     """Performs command line actions."""
     if ns.add is not None:
-        db.add_replay(ns.add, wcr=ns.wcr)
+        for path in ns.add:
+            print('Adding replay: {0}'.format(path))
+            db.add_replay(path, wcr=ns.wcr)
     if ns.dump is not None:
         db.dump(ns.dump)
     if ns.events is not None:
@@ -257,8 +259,8 @@ def main():
     import argparse
     parser = argparse.ArgumentParser('w3ml-db')
     parser.add_argument('file', help='Path to the database')
-    parser.add_argument('-a', '--add', dest='add', default=None, 
-                        help='adds a replay to the database from a file or url')
+    parser.add_argument('-a', '--add', dest='add', nargs='+', default=None, 
+                        help='adds replays to the database from a files or urls')
     parser.add_argument('--wcr', dest='wcr', nargs='?', const=True, default=False, 
                         help='the path to add is simply the id number from '
                              'http://www.wcreplays.com/')
