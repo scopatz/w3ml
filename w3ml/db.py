@@ -142,8 +142,12 @@ class Database(object):
         else:
             return ris[self.sha1(x)] 
 
-    def add_replay(self, path):
-        """Adds a replay to the database, path may be a file or url."""
+    def add_replay(self, path, wcr=False):
+        """Adds a replay to the database, path may be a file or url.
+        If wcr is True, then file will be downloaded from wcreplays.com
+        """
+        if wcr:
+            path = 'http://www.wcreplays.com/replay.php?m=DownloadReplay&rid=' + path
         if path.startswith('http://'):
             # must be a url
             response = urlopen(path)
@@ -216,7 +220,7 @@ class Database(object):
 def act(db, ns):
     """Performs command line actions."""
     if ns.add is not None:
-        db.add_replay(ns.add)
+        db.add_replay(ns.add, wcr=ns.wcr)
     if ns.dump is not None:
         db.dump(ns.dump)
     if ns.events is not None:
@@ -230,6 +234,9 @@ def main():
     parser.add_argument('file', help='Path to the database')
     parser.add_argument('-a', '--add', dest='add', default=None, 
                         help='adds a replay to the database from a file or url')
+    parser.add_argument('--wcr', dest='wcr', nargs='?', const=True, default=False, 
+                        help='the path to add is simply the id number from '
+                             'http://www.wcreplays.com/')
     parser.add_argument('-l', '--list', dest='list', nargs='?', const=None,
                         default='<not-given>', 
                         help='lists metadata in the database')
@@ -245,10 +252,6 @@ def main():
 
     with Database(ns.file) as db:
         act(db, ns)
-
-    if sys.version_info[0] < 2:
-        utf8writer.flush()
-        utf8writer.close()
 
 if __name__ == "__main__":
     main()
