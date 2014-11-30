@@ -163,7 +163,7 @@ class Database(object):
             return
         w3f = w3g.File(BytesIO(b))
         actions = w3f.timegrid_actions()
-        mins = w3f.replay_length / (1000.0 * 60)
+        mins = w3f.clock / (1000.0 * 60)
         if len(actions) != 2:
             warn('Replay does not appear to be 1v1 game...skipping', RuntimeWarning)
             return 
@@ -174,7 +174,7 @@ class Database(object):
             w3f.slot_record(pid1).color, actions[pid1][-1], actions[pid1][-1] / mins, 
             u2i(w3f.player_name(pid2), 50), w3f.player_race(pid2), pid2,
             w3f.slot_record(pid2).color, actions[pid2][-1], actions[pid2][-1] / mins,
-            w3f.build_num, w3f.game_speed, w3f.replay_length)])
+            w3f.build_num, w3f.game_speed, w3f.clock)])
         self.actions.append([[actions[pid1], actions[pid2]]])
         self.replay_idx[h] = len(self)
 
