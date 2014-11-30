@@ -27,6 +27,8 @@ if sys.version_info[0] < 3:
             if 'file' not in kw:
                 kw['file'] = utf8writer
             f(*uo, **kw)
+            utf8writer.flush()
+            sys.stdout.flush()
         return uprint
     print = umake(print)
 
@@ -181,6 +183,7 @@ class Database(object):
         sys.stdout.write(b)
 
     def pprint(self, s=None, cols=DEFAULT_COLS):
+        """Pretty printer for metadata table."""
         s = ensure_slice(s)
         transformers = [shortsha1, noop, noop, noop, 
                         i2u, noop, noop, noop, noop, stramp,
@@ -195,12 +198,27 @@ class Database(object):
         ptstr = pt.get_string(fields=cols)
         print(ptstr)
 
+    def events(self, i):
+        """Returns the events from a replay."""
+        i = self.idx(i)
+        b = bytes(self.replays[i])
+        with w3g.File(BytesIO(b)) as f:
+            events = f.events
+        return events
+
+    def print_events(self, i):
+        """Prints the events from a replay to the screen."""
+        for event in self.events(i):
+            print(event)
+
 def act(db, ns):
     """Performs command line actions."""
     if ns.add is not None:
         db.add_replay(ns.add)
     if ns.dump is not None:
         db.dump(ns.dump)
+    if ns.events is not None:
+        db.print_events(ns.events)
     if ns.list != '<not-given>':
         db.pprint(ns.list, cols=ns.cols)
 
@@ -217,12 +235,18 @@ def main():
                         default=DEFAULT_COLS, 
                         help='lists only the given columns. available columns are: '
                              'idx, ' + ', '.join(METADATA_DESC.names))
+    parser.add_argument('-e', '--events', dest='events', default=None, 
+                        help='prints the events in a replay to the screen')
     parser.add_argument('--dump', dest='dump', default=None, 
                         help='dumps a replay to the screen')
     ns = parser.parse_args()
 
     with Database(ns.file) as db:
         act(db, ns)
+
+    if sys.version_info[0] < 2:
+        utf8writer.flush()
+        utf8writer.close()
 
 if __name__ == "__main__":
     main()
