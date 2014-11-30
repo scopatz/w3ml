@@ -5,6 +5,7 @@ import os
 import sys
 from io import BytesIO
 from hashlib import sha1
+from warnings import warn
 from binascii import hexlify, unhexlify
 
 import numpy as np
@@ -164,7 +165,8 @@ class Database(object):
         actions = w3f.timegrid_actions()
         mins = w3f.replay_length / (1000.0 * 60)
         if len(actions) != 2:
-            raise RuntimeError('Replay does not appear to be 1v1 game.')
+            warn('Replay does not appear to be 1v1 game...skipping', RuntimeWarning)
+            return 
         pid1, pid2 = sorted(actions.keys())
         self.replays.append(b)
         self.metadata.append([(h, w3f.map_name, src, w3f.winner(),
